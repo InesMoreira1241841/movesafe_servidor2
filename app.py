@@ -1,55 +1,72 @@
 # Servidor
 
 import os
-import sqlite3
+import time
+import psycopg2
+import psycopg2.extras
 from flask import Flask, request, jsonify, render_template
 
 app = Flask(__name__)
 
-BASE = os.path.dirname(os.path.abspath(__file__))
-DB = os.path.join(BASE, "movesafe.db")
+DATABASE_URL = os.environ.get("DATABASE_URL")
 CHAVE = os.environ.get("MOVESAFE_KEY", "chave-de-teste")
 ZONAS = {"segura", "limite", "sobrecarga"}
 CAMPOS = ["sessao_id", "timestamp", "temperatura", "fc", "rmssd",
           "emg_rms", "fadiga_pct", "zona", "alerta_ativo"]
 
+SCHEMA = """
+CREATE TABLE IF NOT EXISTS doentes (
+    id SERIAL PRIMARY KEY,
+    codigo_clinico TEXT, idade INTEGER, patologia TEXT, protocolo TEXT
+);
+CREATE TABLE IF NOT EXISTS sessoes (
+    id SERIAL PRIMARY KEY,
+    doente_id INTEGER REFERENCES doentes(id),
+    data TEXT, hora_inicio TEXT, duracao_min INTEGER, profissional TEXT
+);
+CREATE TABLE IF NOT EXISTS registos (
+    id SERIAL PRIMARY KEY,
+    sessao_id INTEGER REFERENCES sessoes(id),
+    timestamp TEXT, temperatura REAL, fc INTEGER, rmssd REAL,
+    emg_rms REAL, fadiga_pct REAL, zona TEXT, alerta_ativo BOOLEAN
+);
+"""
 
-def db():
-    con = sqlite3.connect(DB)
-    con.row_factory = sqlite3.Row
-    return con
+
+def executar(sql, params=(), fetch=False):
+    con = psycopg2.connect(DATABASE_URL)
+    try:
+        with con.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+            cur.execute(sql, params)
+            resultado = cur.fetchall() if fetch else None
+        con.commit()
+        return resultado
+    finally:
+        con.close()
 
 
 def iniciar_bd():
-    con = db()
-    con.executescript("""
-    CREATE TABLE IF NOT EXISTS doentes (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        codigo_clinico TEXT, idade INTEGER, patologia TEXT, protocolo TEXT
-    );
-    CREATE TABLE IF NOT EXISTS sessoes (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        doente_id INTEGER REFERENCES doentes(id),
-        data TEXT, hora_inicio TEXT, duracao_min INTEGER, profissional TEXT
-    );
-    CREATE TABLE IF NOT EXISTS registos (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        sessao_id INTEGER REFERENCES sessoes(id),
-        timestamp TEXT, temperatura REAL, fc INTEGER, rmssd REAL,
-        emg_rms REAL, fadiga_pct REAL, zona TEXT, alerta_ativo INTEGER
-    );
-    """)
-    # dados de teste (só se a BD estiver vazia)
-    if con.execute("SELECT COUNT(*) FROM doentes").fetchone()[0] == 0:
-        con.execute("INSERT INTO doentes (codigo_clinico, idade, patologia, protocolo) "
-                    "VALUES ('DOENTE-TESTE', 60, 'Teste', 'Protocolo de teste')")
-        con.execute("INSERT INTO sessoes (doente_id, data, hora_inicio, duracao_min, profissional) "
-                    "VALUES (1, date('now'), time('now'), 0, 'Profissional Teste')")
-    con.commit()
-    con.close()
+    executar(SCHEMA)
+    n = executar("SELECT COUNT(*) AS n FROM doentes", fetch=True)[0]["n"]
+    if n == 0:
+        executar("INSERT INTO doentes (codigo_clinico, idade, patologia, protocolo) "
+                 "VALUES (%s, %s, %s, %s)",
+                 ("DOENTE-TESTE", 60, "Teste", "Protocolo de teste"))
+        executar("INSERT INTO sessoes (doente_id, data, hora_inicio, duracao_min, profissional) "
+                 "VALUES (%s, %s, %s, %s, %s)",
+                 (1, time.strftime("%Y-%m-%d"), time.strftime("%H:%M:%S"), 0, "Profissional Teste"))
 
 
-iniciar_bd()
+_bd_pronta = False
+
+
+@app.before_request
+def garantir_bd():
+    # cria as tabelas na primeira chamada (só se já houver base de dados ligada)
+    global _bd_pronta
+    if not _bd_pronta and DATABASE_URL:
+        iniciar_bd()
+        _bd_pronta = True
 
 
 @app.route("/")
@@ -59,7 +76,7 @@ def inicio():
 
 @app.route("/saude")
 def saude():
-    return jsonify(estado="online")
+    return jsonify(estado="online", base_de_dados=bool(DATABASE_URL))
 
 
 @app.route("/api/dados", methods=["POST"])
@@ -77,25 +94,20 @@ def receber():
     if d["zona"] not in ZONAS:
         return jsonify(erro="zona inválida"), 400
 
-    con = db()
-    con.execute(
+    executar(
         "INSERT INTO registos (sessao_id, timestamp, temperatura, fc, rmssd, "
-        "emg_rms, fadiga_pct, zona, alerta_ativo) VALUES (?,?,?,?,?,?,?,?,?)",
+        "emg_rms, fadiga_pct, zona, alerta_ativo) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s)",
         (d["sessao_id"], d["timestamp"], d["temperatura"], d["fc"], d["rmssd"],
-         d["emg_rms"], d["fadiga_pct"], d["zona"], int(bool(d["alerta_ativo"]))))
-    con.commit()
-    con.close()
+         d["emg_rms"], d["fadiga_pct"], d["zona"], bool(d["alerta_ativo"])))
     return jsonify(ok=True), 201
 
 
 @app.route("/api/ultimos/<int:sessao_id>")
 def ultimos(sessao_id):
-    con = db()
-    linhas = con.execute(
-        "SELECT * FROM registos WHERE sessao_id=? ORDER BY id DESC LIMIT 60",
-        (sessao_id,)).fetchall()
-    con.close()
-    return jsonify([dict(l) for l in linhas][::-1])
+    linhas = executar(
+        "SELECT * FROM registos WHERE sessao_id=%s ORDER BY id DESC LIMIT 60",
+        (sessao_id,), fetch=True)
+    return jsonify(linhas[::-1])
 
 
 if __name__ == "__main__":
