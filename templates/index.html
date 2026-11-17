@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>MoveSafe</title>
+  <style>
+    body { font-family: sans-serif; margin: 20px; }
+    table { border-collapse: collapse; width: 100%; }
+    th, td { border: 1px solid #ccc; padding: 6px; text-align: center; }
+    .segura { background: #86efac; } .limite { background: #fde047; } .sobrecarga { background: #fca5a5; }
+  </style>
+</head>
+<body>
+  <h1>MoveSafe – Servidor 2</h1>
+  <p>Últimos registos da sessão 1 (atualiza sozinho)</p>
+  <table>
+    <thead><tr><th>Hora</th><th>Temp</th><th>FC</th><th>RMSSD</th><th>sEMG</th><th>Fadiga %</th><th>Zona</th></tr></thead>
+    <tbody id="corpo"></tbody>
+  </table>
+  <script>
+    async function atualizar() {
+      const r = await fetch("/api/ultimos/1");
+      const dados = (await r.json()).slice(-10).reverse();
+      document.getElementById("corpo").innerHTML = dados.map(d =>
+        `<tr><td>${d.timestamp.slice(11)}</td><td>${d.temperatura}</td><td>${d.fc}</td>
+         <td>${d.rmssd}</td><td>${d.emg_rms}</td><td>${d.fadiga_pct}</td>
+         <td class="${d.zona}">${d.zona}</td></tr>`).join("");
+    }
+    setInterval(atualizar, 2000);
+    atualizar();
+  </script>
+</body>
+</html>
