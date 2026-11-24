@@ -1,91 +1,135 @@
 /* ==========================================================================
-   MoveSafe - Estilos 
+   MoveSafe - Estilos (v2)
    ========================================================================== */
 
 :root {
-    --mint-primary: #2e7d32;
-    --mint-light: #e8f5e9;
-    --mint-accent: #81c784;
-    --bg-main: #f8fafc;
-    --text-dark: #1e293b;
-    --border-color: #e2e8f0;
+    /* Marca */
+    --brand:          #0E5FD8;
+    --brand-hover:    #0A4BB0;
+    --brand-subtle:   #EAF2FF;
+    --accent:         #0FB5A6;
+
+    /* Neutros */
+    --bg-main:        #F7F8FA;
+    --surface:        #FFFFFF;
+    --border-color:   #E4E7EC;
+    --text-dark:      #101828;
+    --text-muted:     #667085;
+    --hover-neutral:  #F2F4F7;
+
+    /* Sensores */
+    --ecg:            #E5484D;
+    --emg:            #7C5CFC;
+    --temp:           #F59E0B;
+
+    /* Zonas de esforco: fundo suave + texto forte */
+    --ok-bg:   #ECFDF3;  --ok-fg:   #067647;  --ok-bd:   #ABEFC6;
+    --warn-bg: #FFFAEB;  --warn-fg: #B54708;  --warn-bd: #FEDF89;
+    --bad-bg:  #FEF3F2;  --bad-fg:  #B42318;  --bad-bd:  #FECDCA;
+
+    --radius-lg: 16px;
+    --radius-md: 12px;
+    --radius-sm: 8px;
+    --shadow-sm: 0 1px 2px rgba(16, 24, 40, 0.05);
 }
 
+/* ---------- Base ---------- */
 body {
-    font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    font-family: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
     background-color: var(--bg-main) !important;
     color: var(--text-dark);
     -webkit-font-smoothing: antialiased;
 }
 
+h1, h2, h3, h4, h5 { font-weight: 600; letter-spacing: -0.01em; }
+.text-muted, small  { color: var(--text-muted) !important; }
+
 header {
+    background-color: var(--surface) !important;
     border-bottom: 1px solid var(--border-color) !important;
-    background-color: #ffffff !important;
 }
 
-/* Painéis arredondados (efeito "nuvem") */
-aside div,
-main div.bg-white {
-    border-radius: 16px !important;
-    border: 1px solid rgba(226, 232, 240, 0.8) !important;
-    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03) !important;
+/* ---------- Paineis / cartoes ---------- */
+aside > div,
+main .bg-white,
+.card {
+    background: var(--surface);
+    border: 1px solid var(--border-color) !important;
+    border-radius: var(--radius-lg) !important;
+    box-shadow: var(--shadow-sm) !important;
 }
 
-/* Menu lateral */
+/* ---------- Menu lateral ---------- */
 .nav-link {
-    transition: all 0.2s ease-in-out;
     font-size: 0.95rem;
     margin-bottom: 2px;
+    border-radius: var(--radius-sm);
+    transition: background-color 0.15s ease, color 0.15s ease;
 }
-
 .nav-link.text-secondary:hover {
-    color: var(--mint-primary) !important;
-    background-color: #f1f5f9;
-    border-radius: 8px;
+    color: var(--brand) !important;
+    background-color: var(--hover-neutral);
 }
-
 .nav-link.text-success.bg-success-subtle {
-    color: var(--mint-primary) !important;
-    background-color: var(--mint-light) !important;
-    border-radius: 8px;
-}
-
-/* Botões */
-.btn-success {
-    background-color: var(--mint-primary) !important;
-    border-color: var(--mint-primary) !important;
-}
-
-.btn-outline-success {
-    color: var(--mint-primary) !important;
-    border-color: var(--mint-primary) !important;
-}
-
-.btn-outline-success:hover {
-    background-color: var(--mint-primary) !important;
-    color: #ffffff !important;
-}
-
-.badge {
+    color: var(--brand) !important;
+    background-color: var(--brand-subtle) !important;
     font-weight: 600;
-    letter-spacing: 0.02em;
 }
 
-/* Utilitários iguais aos do LusoHealth */
-.bg-page-light { background-color: #f8fafc; }
-.custom-card-rounded { border-radius: 12px; }
+/* ---------- Botoes ---------- */
+.btn { border-radius: var(--radius-sm); font-weight: 500; }
+
+.btn-success {
+    background-color: var(--brand) !important;
+    border-color: var(--brand) !important;
+}
+.btn-success:hover,
+.btn-success:focus {
+    background-color: var(--brand-hover) !important;
+    border-color: var(--brand-hover) !important;
+}
+.btn-outline-success {
+    color: var(--brand) !important;
+    border-color: var(--brand) !important;
+}
+.btn-outline-success:hover {
+    background-color: var(--brand) !important;
+    color: #FFFFFF !important;
+}
+.btn:focus-visible { outline: 3px solid var(--brand-subtle); outline-offset: 2px; }
+
+.badge { font-weight: 600; letter-spacing: 0.02em; border-radius: 999px; }
+
+/* ---------- Utilitarios ---------- */
+.bg-page-light         { background-color: var(--bg-main); }
+.custom-card-rounded   { border-radius: var(--radius-md); }
 .main-container-height { min-height: 80vh; }
-.icon-brand-clinical { color: #2e7d32; }
+.icon-brand-clinical   { color: var(--brand); }
 
-/* ---------- Específico do MoveSafe ---------- */
+/* ---------- Valores dos sensores ---------- */
+.valor-sensor  { font-size: 2.25rem; font-weight: 600; line-height: 1; font-variant-numeric: tabular-nums; }
+.valor-unidade { font-size: 0.95rem; color: var(--text-muted); margin-left: 4px; }
+.cor-ecg  { color: var(--ecg); }
+.cor-emg  { color: var(--emg); }
+.cor-temp { color: var(--temp); }
 
-/* Cartão da zona atual */
-.zona-segura { background-color: #86efac !important; }
-.zona-limite { background-color: #fde047 !important; }
-.zona-sobrecarga { background-color: #fca5a5 !important; }
+/* ---------- Especifico do MoveSafe: zona atual ---------- */
+.zona-segura, .zona-limite, .zona-sobrecarga {
+    border: 1px solid transparent;
+    border-radius: var(--radius-lg);
+}
+.zona-segura     { background-color: var(--ok-bg)   !important; color: var(--ok-fg);   border-color: var(--ok-bd); }
+.zona-limite     { background-color: var(--warn-bg) !important; color: var(--warn-fg); border-color: var(--warn-bd); }
+.zona-sobrecarga { background-color: var(--bad-bg)  !important; color: var(--bad-fg);  border-color: var(--bad-bd); }
 
-.zona-nome { font-size: 2rem; font-weight: 800; }
+.zona-nome { font-size: 2rem; font-weight: 700; letter-spacing: -0.01em; }
 
-/* Alerta de sobrecarga a piscar */
-.alerta-piscar { animation: piscar 1s infinite; }
-@keyframes piscar { 50% { opacity: 0.6; } }
+/* Alerta de sobrecarga: pulso suave em vez de piscar */
+.alerta-piscar { animation: pulso 1.2s ease-in-out infinite; }
+@keyframes pulso {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(180, 35, 24, 0.35); }
+    50%      { box-shadow: 0 0 0 8px rgba(180, 35, 24, 0); }
+}
+@media (prefers-reduced-motion: reduce) {
+    .alerta-piscar { animation: none; }
+}
