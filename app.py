@@ -6,7 +6,7 @@ import psycopg2
 import psycopg2.extras
 from flask import Flask, request, jsonify, render_template
 
-app = Flask(__name__)
+app = Flask(__name__, static_folder="public", static_url_path="")
 
 DATABASE_URL = os.environ.get("DATABASE_URL")
 CHAVE = os.environ.get("MOVESAFE_KEY", "chave-de-teste")

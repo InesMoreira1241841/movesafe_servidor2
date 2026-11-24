@@ -1,180 +1,99 @@
-<!DOCTYPE html>
-<html lang="pt">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>MoveSafe – Dashboard Clínico</title>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
-  <style>
-    * { box-sizing: border-box; }
-    body { font-family: system-ui, sans-serif; margin: 0; background: #f1f5f9; color: #1e293b; }
-    header { background: #fff; padding: 14px 24px; border-bottom: 1px solid #e2e8f0;
-             display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; }
-    header h1 { margin: 0; font-size: 1.3rem; }
-    header small { color: #64748b; }
-    main { padding: 20px 24px; max-width: 1200px; margin: 0 auto; }
+{% extends "base.html" %}
 
-    #alerta { display: none; background: #dc2626; color: #fff; padding: 14px 18px;
-              border-radius: 10px; margin-bottom: 16px; font-weight: 700; font-size: 1.1rem;
-              animation: piscar 1s infinite; }
-    @keyframes piscar { 50% { opacity: .6; } }
+{% block titulo %}MoveSafe | Dashboard{% endblock %}
 
-    .topo { display: grid; grid-template-columns: 1fr 2fr; gap: 16px; margin-bottom: 16px; }
-    @media (max-width: 800px) { .topo { grid-template-columns: 1fr; } }
+{% block conteudo %}
+<div class="bg-white p-4 shadow-sm border border-light-subtle main-container-height custom-card-rounded">
 
-    .cartao { background: #fff; border-radius: 12px; padding: 16px; box-shadow: 0 1px 3px rgba(0,0,0,.08); }
-    #zona { text-align: center; display: flex; flex-direction: column; justify-content: center; }
-    #zona .rotulo { font-size: .8rem; text-transform: uppercase; color: #475569; letter-spacing: .05em; }
-    #zona .nome { font-size: 2.2rem; font-weight: 800; margin-top: 6px; }
-    #zona.segura { background: #86efac; }
-    #zona.limite { background: #fde047; }
-    #zona.sobrecarga { background: #fca5a5; }
-
-    .valores { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 12px; }
-    .valor { text-align: center; }
-    .valor .num { font-size: 1.8rem; font-weight: 700; }
-    .valor .leg { font-size: .75rem; color: #64748b; text-transform: uppercase; }
-
-    .graficos { display: grid; grid-template-columns: repeat(auto-fit, minmax(380px, 1fr)); gap: 16px; }
-    .graficos h3 { margin: 0 0 8px; font-size: .9rem; color: #475569; }
-
-    #btnSom { background: #2e7d32; color: #fff; border: 0; padding: 8px 16px;
-              border-radius: 20px; cursor: pointer; font-size: .85rem; }
-    #btnSom.ativo { background: #94a3b8; }
-  </style>
-</head>
-<body>
-  <header>
-    <div>
-      <h1>MoveSafe – Dashboard Clínico</h1>
-      <small>Sessão 1 · <span id="estado">a ligar...</span></small>
-    </div>
-    <button id="btnSom">🔔 Ativar som do alerta</button>
-  </header>
-
-  <main>
-    <div id="alerta">⚠️ ALERTA: doente em zona de SOBRECARGA — reduzir ou parar o exercício!</div>
-
-    <div class="topo">
-      <div class="cartao" id="zona">
-        <div class="rotulo">Zona atual</div>
-        <div class="nome" id="zonaNome">—</div>
-      </div>
-      <div class="cartao valores">
-        <div class="valor"><div class="num" id="vTemp">—</div><div class="leg">Temp (°C)</div></div>
-        <div class="valor"><div class="num" id="vFc">—</div><div class="leg">FC (bpm)</div></div>
-        <div class="valor"><div class="num" id="vRmssd">—</div><div class="leg">RMSSD (ms)</div></div>
-        <div class="valor"><div class="num" id="vEmg">—</div><div class="leg">sEMG RMS</div></div>
-        <div class="valor"><div class="num" id="vFadiga">—</div><div class="leg">Fadiga (%)</div></div>
-      </div>
+    <div class="mb-4 pb-2 border-bottom">
+        <h2 class="fw-bold text-dark m-0">Dashboard Clínico</h2>
+        <p class="text-muted small m-0">Monitorização em tempo real da sessão de reabilitação (sessão 1).</p>
     </div>
 
-    <div class="graficos">
-      <div class="cartao"><h3>Temperatura cutânea (°C)</h3><canvas id="gTemp"></canvas></div>
-      <div class="cartao"><h3>Frequência cardíaca (bpm)</h3><canvas id="gFc"></canvas></div>
-      <div class="cartao"><h3>VFC – RMSSD (ms)</h3><canvas id="gRmssd"></canvas></div>
-      <div class="cartao"><h3>sEMG (RMS) e fadiga (%)</h3><canvas id="gEmg"></canvas></div>
+    <!-- Alerta de sobrecarga -->
+    <div id="alerta" class="alert alert-danger fw-bold d-none alerta-piscar" role="alert">
+        <i class="fa-solid fa-triangle-exclamation me-2"></i>
+        ALERTA: doente em zona de SOBRECARGA. Reduzir ou parar o exercício!
     </div>
-  </main>
 
-  <script>
-    const SESSAO = 1;
-    let somAtivo = false;
-    let audioCtx = null;
-    let ultimoBip = 0;
+    <!-- Zona atual + valores atuais -->
+    <div class="row g-3 mb-4">
 
-    // ---------- gráficos ----------
-    function criarGrafico(id, series) {
-      return new Chart(document.getElementById(id), {
-        type: "line",
-        data: { labels: [], datasets: series.map(s => ({
-          label: s.nome, data: [], borderColor: s.cor, backgroundColor: s.cor,
-          pointRadius: 0, borderWidth: 2, tension: 0.3, yAxisID: s.eixo || "y" })) },
-        options: {
-          animation: false,
-          plugins: { legend: { display: series.length > 1 } },
-          scales: { x: { ticks: { maxTicksLimit: 6 } }, y: {},
-                    y2: { position: "right", display: series.some(s => s.eixo === "y2"),
-                          grid: { drawOnChartArea: false } } }
-        }
-      });
-    }
+        <div class="col-md-4">
+            <div id="zona" class="p-4 border rounded-3 text-center h-100 d-flex flex-column justify-content-center bg-light">
+                <span class="text-muted text-uppercase small fw-bold">Zona atual</span>
+                <span id="zonaNome" class="zona-nome">—</span>
+            </div>
+        </div>
 
-    const gTemp  = criarGrafico("gTemp",  [{ nome: "Temp", cor: "#ea580c" }]);
-    const gFc    = criarGrafico("gFc",    [{ nome: "FC", cor: "#dc2626" }]);
-    const gRmssd = criarGrafico("gRmssd", [{ nome: "RMSSD", cor: "#2563eb" }]);
-    const gEmg   = criarGrafico("gEmg",   [{ nome: "sEMG RMS", cor: "#16a34a" },
-                                           { nome: "Fadiga %", cor: "#9333ea", eixo: "y2" }]);
+        <div class="col-md-8">
+            <div class="row g-3">
+                <div class="col-6 col-lg-4">
+                    <div class="p-3 bg-light border rounded-3 text-center">
+                        <h6 class="text-muted text-uppercase small fw-bold">Temperatura (°C)</h6>
+                        <p id="vTemp" class="fs-3 fw-bold text-dark m-0 font-monospace">—</p>
+                    </div>
+                </div>
+                <div class="col-6 col-lg-4">
+                    <div class="p-3 bg-light border rounded-3 text-center">
+                        <h6 class="text-muted text-uppercase small fw-bold">FC (bpm)</h6>
+                        <p id="vFc" class="fs-3 fw-bold text-dark m-0 font-monospace">—</p>
+                    </div>
+                </div>
+                <div class="col-6 col-lg-4">
+                    <div class="p-3 bg-light border rounded-3 text-center">
+                        <h6 class="text-muted text-uppercase small fw-bold">RMSSD (ms)</h6>
+                        <p id="vRmssd" class="fs-3 fw-bold text-dark m-0 font-monospace">—</p>
+                    </div>
+                </div>
+                <div class="col-6 col-lg-6">
+                    <div class="p-3 bg-light border rounded-3 text-center">
+                        <h6 class="text-muted text-uppercase small fw-bold">sEMG (RMS)</h6>
+                        <p id="vEmg" class="fs-3 fw-bold text-dark m-0 font-monospace">—</p>
+                    </div>
+                </div>
+                <div class="col-6 col-lg-6">
+                    <div class="p-3 bg-light border rounded-3 text-center">
+                        <h6 class="text-muted text-uppercase small fw-bold">Fadiga (%)</h6>
+                        <p id="vFadiga" class="fs-3 fw-bold text-dark m-0 font-monospace">—</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
 
-    function preencher(g, labels, ...series) {
-      g.data.labels = labels;
-      series.forEach((s, i) => g.data.datasets[i].data = s);
-      g.update("none");
-    }
+    <!-- Gráficos -->
+    <div class="row g-3">
+        <div class="col-md-6">
+            <div class="p-3 bg-light border rounded-3">
+                <h6 class="text-muted text-uppercase small fw-bold mb-3">Temperatura cutânea (°C)</h6>
+                <canvas id="gTemp"></canvas>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="p-3 bg-light border rounded-3">
+                <h6 class="text-muted text-uppercase small fw-bold mb-3">Frequência cardíaca (bpm)</h6>
+                <canvas id="gFc"></canvas>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="p-3 bg-light border rounded-3">
+                <h6 class="text-muted text-uppercase small fw-bold mb-3">VFC - RMSSD (ms)</h6>
+                <canvas id="gRmssd"></canvas>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="p-3 bg-light border rounded-3">
+                <h6 class="text-muted text-uppercase small fw-bold mb-3">sEMG (RMS) e fadiga (%)</h6>
+                <canvas id="gEmg"></canvas>
+            </div>
+        </div>
+    </div>
 
-    // ---------- som do alerta ----------
-    document.getElementById("btnSom").addEventListener("click", function () {
-      audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)();
-      somAtivo = !somAtivo;
-      this.textContent = somAtivo ? "🔕 Desativar som do alerta" : "🔔 Ativar som do alerta";
-      this.classList.toggle("ativo", somAtivo);
-      if (somAtivo) bip();
-    });
+</div>
+{% endblock %}
 
-    function bip() {
-      if (!audioCtx) return;
-      const osc = audioCtx.createOscillator();
-      const gain = audioCtx.createGain();
-      osc.frequency.value = 880;
-      gain.gain.value = 0.2;
-      osc.connect(gain); gain.connect(audioCtx.destination);
-      osc.start(); osc.stop(audioCtx.currentTime + 0.4);
-    }
-
-    // ---------- atualização ----------
-    const NOMES = { segura: "SEGURA", limite: "LIMITE", sobrecarga: "SOBRECARGA" };
-
-    async function atualizar() {
-      try {
-        const r = await fetch("/api/ultimos/" + SESSAO);
-        const dados = await r.json();
-        document.getElementById("estado").textContent = "ligado";
-        if (!dados.length) return;
-
-        const u = dados[dados.length - 1];
-        const horas = dados.map(d => d.timestamp.slice(11));
-
-        // valores atuais
-        document.getElementById("vTemp").textContent = u.temperatura;
-        document.getElementById("vFc").textContent = u.fc;
-        document.getElementById("vRmssd").textContent = u.rmssd;
-        document.getElementById("vEmg").textContent = u.emg_rms;
-        document.getElementById("vFadiga").textContent = u.fadiga_pct;
-
-        // cartão da zona
-        const z = document.getElementById("zona");
-        z.className = "cartao " + u.zona;
-        document.getElementById("zonaNome").textContent = NOMES[u.zona] || u.zona;
-
-        // alerta
-        document.getElementById("alerta").style.display = u.alerta_ativo ? "block" : "none";
-        if (u.alerta_ativo && somAtivo && Date.now() - ultimoBip > 3000) {
-          bip();
-          ultimoBip = Date.now();
-        }
-
-        // gráficos
-        preencher(gTemp, horas, dados.map(d => d.temperatura));
-        preencher(gFc, horas, dados.map(d => d.fc));
-        preencher(gRmssd, horas, dados.map(d => d.rmssd));
-        preencher(gEmg, horas, dados.map(d => d.emg_rms), dados.map(d => d.fadiga_pct));
-      } catch (e) {
-        document.getElementById("estado").textContent = "sem ligação ao servidor";
-      }
-    }
-
-    setInterval(atualizar, 1000);
-    atualizar();
-  </script>
-</body>
-</html>
+{% block scripts %}
+<script>window.SESSAO = 1;</script>
+<script src="/js/movesafe.js?v=1"></script>
+{% endblock %}
